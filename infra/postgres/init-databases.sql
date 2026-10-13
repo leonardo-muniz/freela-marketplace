@@ -1,0 +1,4 @@
+-- Os bancos agora são provisionados por containers PostgreSQL 18 independentes
+-- no docker-compose.yml: contrato-postgres, notificacao-postgres,
+-- reputacao-postgres e auditoria-postgres.
+-- Este arquivo é mantido como referência histórica para instalações legadas.

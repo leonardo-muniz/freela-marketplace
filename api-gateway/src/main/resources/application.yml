@@ -1,0 +1,73 @@
+server:
+  port: 8080
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: contrato-service
+              uri: lb://contrato-service
+              predicates:
+                - Path=/api/contratos/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: contratoService
+                    fallbackUri: forward:/fallback/contratos
+            - id: notificacao-service
+              uri: lb://notificacao-service
+              predicates:
+                - Path=/api/notificacoes/**
+            - id: reputacao-service
+              uri: lb://reputacao-service
+              predicates:
+                - Path=/api/reputacoes/**
+            - id: auditoria-service
+              uri: lb://auditoria-service
+              predicates:
+                - Path=/api/auditoria/**
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  tracing:
+    sampling:
+      probability: 1.0
+    propagation:
+      type: w3c
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_ENDPOINT:http://localhost:9411/api/v2/spans}
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level service=${spring.application.name} thread=%thread logger=%logger{36} - %msg%n"
+  level:
+    root: INFO
+    br.com.freela: INFO
+resilience4j:
+  circuitbreaker:
+    instances:
+      contratoService:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+  timelimiter:
+    instances:
+      contratoService:
+        timeout-duration: 3s

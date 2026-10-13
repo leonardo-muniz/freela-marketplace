@@ -1,0 +1,9 @@
+package br.com.freela.auditoria;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class AuditoriaApplication {
+    static void main(String[] args) { SpringApplication.run(AuditoriaApplication.class, args); }
+}

@@ -1,0 +1,3 @@
+package br.com.freela.contrato;
+import br.com.freela.contrato.domain.model.*; import org.junit.jupiter.api.Test; import java.math.BigDecimal; import java.util.UUID; import static org.junit.jupiter.api.Assertions.*;
+class ContratoDomainTest { @Test void criaEventoUnicoEOrdenado(){var c=Contrato.criar(UUID.randomUUID(),UUID.randomUUID(),"API",BigDecimal.TEN);assertEquals(1,c.domainEvents().size());assertEquals("ContratoCriado",c.domainEvents().getFirst().eventType());assertEquals(c.id(),((br.com.freela.contrato.domain.event.ContratoCriado)c.domainEvents().getFirst()).contratoId());} @Test void rejeitaValorInvalido(){assertThrows(IllegalArgumentException.class,()->Contrato.criar(UUID.randomUUID(),UUID.randomUUID(),"x",BigDecimal.ZERO));} }

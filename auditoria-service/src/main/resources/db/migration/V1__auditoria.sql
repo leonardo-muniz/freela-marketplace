@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS auditoria_eventos (id UUID PRIMARY KEY,event_id UUID NOT NULL UNIQUE,aggregate_id UUID,event_type VARCHAR(120),correlation_id VARCHAR(120),payload TEXT,recebido_em TIMESTAMP WITH TIME ZONE NOT NULL);

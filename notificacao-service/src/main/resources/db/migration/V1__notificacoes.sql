@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS notificacoes (id UUID PRIMARY KEY, event_id UUID NOT NULL UNIQUE, contrato_id UUID NOT NULL, destinatario_id UUID, tipo VARCHAR(120), mensagem VARCHAR(500), criada_em TIMESTAMP WITH TIME ZONE NOT NULL);

@@ -1,0 +1,196 @@
+services:
+  contrato-postgres:
+    image: postgres:18.6
+    container_name: freela-contrato-postgres
+    environment:
+      POSTGRES_USER: contrato_user
+      POSTGRES_PASSWORD: ${CONTRATO_DB_PASSWORD:-contrato_password}
+      POSTGRES_DB: contrato_db
+    ports: ["5433:5432"]
+    volumes:
+      - contrato_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U contrato_user -d contrato_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    networks: [freela-net]
+
+  notificacao-postgres:
+    image: postgres:18.6
+    container_name: freela-notificacao-postgres
+    environment:
+      POSTGRES_USER: notificacao_user
+      POSTGRES_PASSWORD: ${NOTIFICACAO_DB_PASSWORD:-notificacao_password}
+      POSTGRES_DB: notificacao_db
+    ports: ["5434:5432"]
+    volumes:
+      - notificacao_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notificacao_user -d notificacao_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    networks: [freela-net]
+
+  reputacao-postgres:
+    image: postgres:18.6
+    container_name: freela-reputacao-postgres
+    environment:
+      POSTGRES_USER: reputacao_user
+      POSTGRES_PASSWORD: ${REPUTACAO_DB_PASSWORD:-reputacao_password}
+      POSTGRES_DB: reputacao_db
+    ports: ["5435:5432"]
+    volumes:
+      - reputacao_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reputacao_user -d reputacao_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    networks: [freela-net]
+
+  auditoria-postgres:
+    image: postgres:18.6
+    container_name: freela-auditoria-postgres
+    environment:
+      POSTGRES_USER: auditoria_user
+      POSTGRES_PASSWORD: ${AUDITORIA_DB_PASSWORD:-auditoria_password}
+      POSTGRES_DB: auditoria_db
+    ports: ["5436:5432"]
+    volumes:
+      - auditoria_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auditoria_user -d auditoria_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    networks: [freela-net]
+
+  kafka:
+    image: apache/kafka:4.3.1
+    container_name: freela-kafka
+    hostname: kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_LISTENERS: INTERNAL://:19092,CONTROLLER://:29093,EXTERNAL://:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:19092,EXTERNAL://localhost:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+    networks: [freela-net]
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:v0.7.2
+    container_name: freela-kafka-ui
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8090:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: freela-local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:19092
+    networks: [freela-net]
+
+  zipkin:
+    image: openzipkin/zipkin:3.6.1
+    container_name: freela-zipkin
+    ports: ["9411:9411"]
+    networks: [freela-net]
+  loki:
+    image: grafana/loki:3.5.0
+    container_name: freela-loki
+    ports: ["3100:3100"]
+    volumes:
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks: [freela-net]
+
+  alloy:
+    image: grafana/alloy:v1.20.1
+    container_name: freela-alloy
+    volumes:
+      - ./observability/alloy.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: run --server.http.listen-addr=0.0.0.0:12345 /etc/alloy/config.alloy
+    networks: [freela-net]
+
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    container_name: freela-prometheus
+    ports: ["9090:9090"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    networks: [freela-net]
+
+  grafana:
+    image: grafana/grafana:13.2.3
+    container_name: freela-grafana
+    depends_on: [prometheus, loki]
+    ports: ["3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+    networks: [freela-net]
+
+  redis:
+    image: redis:8.10.2-alpine
+    container_name: freela-redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports: ["6379:6379"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [freela-net]
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.162.0
+    container_name: freela-otel-collector
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    ports: ["4317:4317", "4318:4318", "8889:8889"]
+    volumes:
+      - ./observability/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+    depends_on: [zipkin]
+    networks: [freela-net]
+
+volumes:
+  contrato_postgres_data:
+  notificacao_postgres_data:
+  reputacao_postgres_data:
+  auditoria_postgres_data:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+  redis_data:
+
+networks:
+  freela-net:
+    name: freela-net

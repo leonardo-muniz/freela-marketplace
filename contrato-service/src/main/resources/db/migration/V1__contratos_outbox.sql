@@ -1,0 +1,3 @@
+CREATE TABLE IF NOT EXISTS contratos (id UUID PRIMARY KEY, cliente_id UUID NOT NULL, freelancer_id UUID NOT NULL, titulo VARCHAR(160) NOT NULL, valor NUMERIC(19,2) NOT NULL, status VARCHAR(40) NOT NULL, criado_em TIMESTAMP WITH TIME ZONE NOT NULL);
+CREATE TABLE IF NOT EXISTS outbox_events (event_id UUID PRIMARY KEY,event_type VARCHAR(120) NOT NULL,aggregate_id VARCHAR(120) NOT NULL,topic VARCHAR(120) NOT NULL,payload TEXT NOT NULL,status VARCHAR(20) NOT NULL,attempts INT NOT NULL,occurred_at TIMESTAMP WITH TIME ZONE NOT NULL,next_attempt_at TIMESTAMP WITH TIME ZONE,correlation_id VARCHAR(120),traceparent VARCHAR(255));
+CREATE INDEX IF NOT EXISTS idx_outbox_pending ON outbox_events(status,next_attempt_at);
