@@ -1,6 +1,6 @@
 <div align="center">
 
-# Freela Marketplace
+# Distributed Marketplace Platform
 
 Projeto de referência para um marketplace de contratação de freelancers construído com arquitetura de microsserviços em Java e Spring.
 
